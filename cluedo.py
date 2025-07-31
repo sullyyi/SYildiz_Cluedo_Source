@@ -1,167 +1,147 @@
-#!/usr/bin/env python3
-#2025
-#added grid fix for starting pos
-"""
-Cluedo Game - Part 1 (Text-based)
-
-This script contains the basic skeleton for a Cluedo game. It defines the core
-data structures (characters, weapons, rooms), sets up the game board, and
-provides a command-line interface for player interaction. Detailed game logic
-(such as validating moves, handling suggestions and refutations) will need to
-be implemented as you continue development.
-
-To run the game:
-    python cluedo.py
-"""
 import random
-from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Optional
 
-@dataclass(frozen=True)
-class Character:
-    """Represents a Cluedo character."""
-    name: str
-    start_position: Tuple[int, int]
+# Define room layout using a 10x10 grid
+ROOMS = {
+    "Study": [(0, 0), (0, 1), (1, 0), (1, 1)],
+    "Hall": [(0, 4), (0, 5), (1, 4), (1, 5)],
+    "Lounge": [(0, 8), (0, 9), (1, 8), (1, 9)],
+    "Library": [(4, 0), (5, 0), (4, 1), (5, 1)],
+    "Gaming Room": [(4, 4), (5, 4), (4, 5), (5, 5)],
+    "Dining Room": [(4, 8), (5, 8), (4, 9), (5, 9)],
+    "Theater": [(8, 0), (9, 0), (8, 1), (9, 1)],
+    "Fireplace": [(8, 4), (9, 4), (8, 5), (9, 5)],
+    "Kitchen": [(8, 8), (9, 8), (8, 9), (9, 9)],
+}
 
-@dataclass(frozen=True)
-class Weapon:
-    """Represents a Cluedo weapon."""
-    name: str
+DOORS = {
+    "Study": [(2, 1)],
+    "Hall": [(2, 4)],
+    "Lounge": [(2, 8)],
+    "Library": [(3, 0)],
+    "Gaming Room": [(3, 4)],
+    "Dining Room": [(3, 8)],
+    "Theater": [(7, 0)],
+    "Fireplace": [(7, 4)],
+    "Kitchen": [(7, 8)],
+}
 
-@dataclass(frozen=True)
-class Room:
-    """Represents a room in the mansion."""
-    name: str
-    position: Tuple[int, int]
-    connections: List[str] = field(default_factory=list)
-    secret_passage: Optional[str] = None
+SECRET_PASSAGES = {
+    "Study": "Kitchen",
+    "Kitchen": "Study",
+    "Lounge": "Library",
+    "Library": "Lounge",
+}
 
-@dataclass
+CHARACTERS = ["Sherlock", "Watson", "Daniel", "Ivy", "James", "Lilith"]
+WEAPONS = ["Trophy", "Iron", "Bust", "Fire Poker", "Meat Tenderizer", "Rat Poison"]
+ROOM_NAMES = list(ROOMS.keys())
+
+START_POSITIONS = {
+    "Sherlock": (2, 1),
+    "Watson": (2, 4),
+    "Daniel": (2, 8),
+    "Ivy": (7, 0),
+    "James": (7, 4),
+    "Lilith": (7, 8),
+}
+
 class Player:
-    """Represents a player in the game."""
-    character: Character
-    position: Tuple[int, int]
-    cards: List[str] = field(default_factory=list)
-
-class Board:
-    """Represents the Cluedo game board as a grid/graph."""
-    def __init__(self):
-        self.rooms: Dict[str, Room] = {}
-        self.graph: Dict[str, List[str]] = {}
-        self.setup_rooms()
-
-    def setup_rooms(self):
-        """Initializes rooms, connections and secret passages."""
-        # Example room layout with positions and secret passages
-        room_data = [
-            ('Study', (0, 0), ['Hall'], 'Kitchen'),
-            ('Hall', (0, 2), ['Study', 'Lounge'], None),
-            ('Lounge', (0, 4), ['Hall'], 'Conservatory'),
-            ('Library', (2, 0), ['Billiard Room'], None),
-            ('Billiard Room', (2, 2), ['Library', 'Dining Room'], None),
-            ('Dining Room', (2, 4), ['Billiard Room', 'Kitchen'], None),
-            ('Conservatory', (4, 0), ['Ballroom'], 'Lounge'),
-            ('Ballroom', (4, 2), ['Conservatory', 'Kitchen'], None),
-            ('Kitchen', (4, 4), ['Ballroom'], 'Study'),
-        ]
-        for name, pos, adj, secret in room_data:
-            self.rooms[name] = Room(name=name, position=pos,
-                                    connections=adj, secret_passage=secret)
-        # Build graph for adjacency
-        for room_name, room in self.rooms.items():
-            self.graph[room_name] = room.connections
-
-    def move(self, start_room: str, end_room: str) -> bool:
-        """Validate movement from start_room to end_room."""
-        return end_room in self.graph.get(start_room, [])
+    def __init__(self, name, position):
+        self.name = name
+        self.position = position
+        self.cards = []
 
 class CluedoGame:
-    """Main class for managing the game state and interactions."""
     def __init__(self):
-        self.characters = self._init_characters()
-        self.weapons = self._init_weapons()
-        self.board = Board()
-        self.solution = self._select_solution()
-        self.players: List[Player] = []
-        self.current_player_index = 0
-        self._deal_cards()
+        self.num_players = self.ask_player_count()
+        self.players = [Player(CHARACTERS[i], START_POSITIONS[CHARACTERS[i]]) for i in range(self.num_players)]
+        self.current_player_idx = 0
+        self.solution = self.select_solution()
+        self.deal_cards()
 
-    def _init_characters(self) -> List[Character]:
-        """Initialize Cluedo characters with starting positions."""
-        # Starting positions can be refined according to your board design
-        return [
-            Character('Miss Scarlett', (0, 1)),
-            Character('Colonel Mustard', (1, 4)),
-            Character('Mrs. White', (4, 3)),
-            Character('Reverend Green', (3, 0)),
-            Character('Mrs. Peacock', (1, 0)),
-            Character('Professor Plum', (4, 1)),
-        ]
+    def ask_player_count(self):
+        while True:
+            try:
+                num = int(input("How many players (2-6)? "))
+                if 2 <= num <= 6:
+                    return num
+                else:
+                    print("Please enter a number between 2 and 6.")
+            except ValueError:
+                print("Invalid input. Enter a number.")
 
-    def _init_weapons(self) -> List[Weapon]:
-        """Initialize Cluedo weapons."""
-        return [
-            Weapon('Candlestick'),
-            Weapon('Dagger'),
-            Weapon('Lead Pipe'),
-            Weapon('Revolver'),
-            Weapon('Rope'),
-            Weapon('Wrench'),
-        ]
+    def select_solution(self):
+        return (
+            random.choice(CHARACTERS),
+            random.choice(WEAPONS),
+            random.choice(ROOM_NAMES)
+        )
 
-    def _select_solution(self) -> Dict[str, str]:
-        """Randomly select the murder solution."""
-        character = random.choice(self.characters).name
-        weapon = random.choice(self.weapons).name
-        room = random.choice(list(self.board.rooms.keys()))
-        return {'character': character, 'weapon': weapon, 'room': room}
+    def deal_cards(self):
+        full_deck = [card for card in CHARACTERS + WEAPONS + ROOM_NAMES if card not in self.solution]
+        random.shuffle(full_deck)
+        for i, card in enumerate(full_deck):
+            self.players[i % len(self.players)].cards.append(card)
 
-    def _deal_cards(self):
-        """Deal remaining cards to players (to be implemented)."""
-        # Combine characters, weapons, and rooms excluding the solution cards
-        pass  # Logic for dealing cards will go here
-
-    def add_player(self, character_name: str):
-        """Add a new player to the game."""
-        character = next((c for c in self.characters if c.name == character_name), None)
-        if character:
-            self.players.append(Player(character=character, position=character.start_position))
-        else:
-            raise ValueError(f"Character '{character_name}' not found")
-
-    def roll_dice(self) -> int:
-        """Simulate rolling a six-sided die."""
+    def roll_die(self):
         return random.randint(1, 6)
 
-    def play_turn(self, player: Player):
-        """Handle a single player's turn (dice roll, movement, suggestion)."""
-        # This method should prompt for user input to move and make suggestions.
-        pass
+    def move_player(self, player, direction, steps):
+        x, y = player.position
+        for _ in range(steps):
+            if direction == "UP":
+                x -= 1
+            elif direction == "DOWN":
+                x += 1
+            elif direction == "LEFT":
+                y -= 1
+            elif direction == "RIGHT":
+                y += 1
+        player.position = (x, y)
+
+    def check_room_entry(self, pos):
+        for room, doors in DOORS.items():
+            if pos in doors:
+                return room
+        return None
+
+    def suggest(self, player, room):
+        print(f"{player.name}, make a suggestion in the {room}:")
+        char = input("  Character: ").strip()
+        weapon = input("  Weapon: ").strip()
+        print(f"You suggested: {char} with the {weapon} in the {room}")
+        # Logic to move the suggested character and weapon would go here
+
+    def play_turn(self, player):
+        input(f"{player.name}, press Enter to roll the die...")
+        roll = self.roll_die()
+        print(f"You rolled a {roll}.")
+        move = input("Enter your move (e.g., UP 2): ").strip().upper().split()
+        if len(move) == 2 and move[0] in {"UP", "DOWN", "LEFT", "RIGHT"}:
+            direction, steps = move[0], int(move[1])
+            self.move_player(player, direction, steps)
+            new_room = self.check_room_entry(player.position)
+            if new_room:
+                print(f"You entered the {new_room}.")
+                self.suggest(player, new_room)
+        elif move[0].startswith("SECRET_PASSAGE_TO_"):
+            dest_room = move[0].replace("SECRET_PASSAGE_TO_", "").title().replace("_", " ")
+            current_room = self.check_room_entry(player.position)
+            if current_room and SECRET_PASSAGES.get(current_room) == dest_room:
+                print(f"{player.name} uses a secret passage to the {dest_room}.")
+                player.position = DOORS[dest_room][0]
+                self.suggest(player, dest_room)
+            else:
+                print("Invalid secret passage.")
+        else:
+            print("Invalid move input.")
 
     def run(self):
-        """Main game loop."""
-        print("Welcome to Cluedo!\n")
-        # Setup players based on user input
-        for character in self.characters:
-            use_character = input(f"Add player for {character.name}? (y/n): ").strip().lower()
-            if use_character == 'y':
-                self.add_player(character.name)
-        print(f"{len(self.players)} players joined the game.\n")
-        # Game loop
         while True:
-            current_player = self.players[self.current_player_index]
-            print(f"It's {current_player.character.name}'s turn.")
-            # Example turn progression (to be expanded)
-            roll = self.roll_dice()
-            print(f"You rolled a {roll}. You are currently at position {current_player.position}.")
-            # TODO: ask player for movement input and process it
-            # TODO: if player enters a room, handle suggestion
-            # End of turn: move to next player
-            self.current_player_index = (self.current_player_index + 1) % len(self.players)
-            # Break condition for demonstration
-            if input("Continue playing? (y/n): ").strip().lower() != 'y':
-                break
+            current_player = self.players[self.current_player_idx]
+            self.play_turn(current_player)
+            self.current_player_idx = (self.current_player_idx + 1) % self.num_players
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     game = CluedoGame()
     game.run()
