@@ -112,29 +112,54 @@ class CluedoGame:
         print(f"You suggested: {char} with the {weapon} in the {room}")
         # Logic to move the suggested character and weapon would go here
 
+    def will_move_off_board(self, position, direction, steps):
+        x, y = position
+        if direction == "UP":
+            return x - steps < 0
+        elif direction == "DOWN":
+            return x + steps >= 10
+        elif direction == "LEFT":
+            return y - steps < 0
+        elif direction == "RIGHT":
+            return y + steps >= 10
+        return True
+
     def play_turn(self, player):
+        current_pos = player.position
+        room_name = self.check_room_entry(current_pos)
+        pos_display = f"{current_pos} ({room_name})" if room_name else str(current_pos)
+        print(f"Current position: {pos_display}")
+
         input(f"{player.name}, press Enter to roll the die...")
         roll = self.roll_die()
         print(f"You rolled a {roll}.")
-        move = input("Enter your move (e.g., UP 2): ").strip().upper().split()
-        if len(move) == 2 and move[0] in {"UP", "DOWN", "LEFT", "RIGHT"}:
-            direction, steps = move[0], int(move[1])
-            self.move_player(player, direction, steps)
-            new_room = self.check_room_entry(player.position)
-            if new_room:
-                print(f"You entered the {new_room}.")
-                self.suggest(player, new_room)
-        elif move[0].startswith("SECRET_PASSAGE_TO_"):
-            dest_room = move[0].replace("SECRET_PASSAGE_TO_", "").title().replace("_", " ")
-            current_room = self.check_room_entry(player.position)
-            if current_room and SECRET_PASSAGES.get(current_room) == dest_room:
-                print(f"{player.name} uses a secret passage to the {dest_room}.")
-                player.position = DOORS[dest_room][0]
-                self.suggest(player, dest_room)
+
+        while True:
+            move = input("Enter your move (e.g., UP 2): ").strip().upper().split()
+            if len(move) == 2 and move[0] in {"UP", "DOWN", "LEFT", "RIGHT"}:
+                direction, steps = move[0], int(move[1])
+                if self.will_move_off_board(player.position, direction, steps):
+                    print("That move would take you off the board. Try again.")
+                    continue
+                self.move_player(player, direction, steps)
+                break
+            elif move[0].startswith("SECRET_PASSAGE_TO_"):
+                dest_room = move[0].replace("SECRET_PASSAGE_TO_", "").title().replace("_", " ")
+                current_room = self.check_room_entry(player.position)
+                if current_room and SECRET_PASSAGES.get(current_room) == dest_room:
+                    print(f"{player.name} uses a secret passage to the {dest_room}.")
+                    player.position = DOORS[dest_room][0]
+                    self.suggest(player, dest_room)
+                else:
+                    print("Invalid secret passage.")
+                break
             else:
-                print("Invalid secret passage.")
-        else:
-            print("Invalid move input.")
+                print("Invalid move input.")
+
+        new_room = self.check_room_entry(player.position)
+        if new_room:
+            print(f"You entered the {new_room}.")
+            self.suggest(player, new_room)
 
     def run(self):
         while True:
