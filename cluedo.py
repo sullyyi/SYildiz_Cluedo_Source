@@ -124,7 +124,9 @@ class CluedoGame:
             return y + steps >= 10
         return True
 
+    
     def play_turn(self, player):
+        print(f"\n--- {player.name}'s Turn ---")
         current_pos = player.position
         room_name = self.check_room_entry(current_pos)
         pos_display = f"{current_pos} ({room_name})" if room_name else str(current_pos)
@@ -142,6 +144,7 @@ class CluedoGame:
                     print("That move would take you off the board. Try again.")
                     continue
                 self.move_player(player, direction, steps)
+                print(f"You have moved to {player.position}")
                 break
             elif move[0].startswith("SECRET_PASSAGE_TO_"):
                 dest_room = move[0].replace("SECRET_PASSAGE_TO_", "").title().replace("_", " ")
@@ -165,6 +168,7 @@ class CluedoGame:
         while True:
             current_player = self.players[self.current_player_idx]
             self.play_turn(current_player)
+            input("Press Enter to end your turn...")
             self.current_player_idx = (self.current_player_idx + 1) % self.num_players
 
 if __name__ == "__main__":
