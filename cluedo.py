@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 #2025
+#added grid fix for starting pos
 """
 Cluedo Game - Part 1 (Text-based)
 
