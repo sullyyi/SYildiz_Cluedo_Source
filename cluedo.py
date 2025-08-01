@@ -1,28 +1,16 @@
 import random
 
-# Define room layout using a 10x10 grid
+# Room layout
 ROOMS = {
-    "Study": [(0, 0), (0, 1), (1, 0), (1, 1)],
-    "Hall": [(0, 4), (0, 5), (1, 4), (1, 5)],
-    "Lounge": [(0, 8), (0, 9), (1, 8), (1, 9)],
-    "Library": [(4, 0), (5, 0), (4, 1), (5, 1)],
-    "Gaming Room": [(4, 4), (5, 4), (4, 5), (5, 5)],
-    "Dining Room": [(4, 8), (5, 8), (4, 9), (5, 9)],
-    "Theater": [(8, 0), (9, 0), (8, 1), (9, 1)],
-    "Fireplace": [(8, 4), (9, 4), (8, 5), (9, 5)],
-    "Kitchen": [(8, 8), (9, 8), (8, 9), (9, 9)],
-}
-
-DOORS = {
-    "Study": [(2, 1)],
-    "Hall": [(2, 4)],
-    "Lounge": [(2, 8)],
-    "Library": [(3, 0)],
-    "Gaming Room": [(3, 4)],
-    "Dining Room": [(3, 8)],
-    "Theater": [(7, 0)],
-    "Fireplace": [(7, 4)],
-    "Kitchen": [(7, 8)],
+    "Study":        [(0,0), (1,0), (0,1), (1,1)],
+    "Hall":         [(4,0), (5,0), (4,1), (5,1)],
+    "Lounge":       [(8,0), (9,0), (8,1), (9,1)],
+    "Library":      [(0,4), (1,4), (0,5), (1,5)],
+    "Gaming Room":  [(4,4), (5,4), (4,5), (5,5)],
+    "Dining Room":  [(8,4), (9,4), (8,5), (9,5)],
+    "Theater":      [(0,8), (1,8), (0,9), (1,9)],
+    "Fireplace":    [(4,8), (5,8), (4,9), (5,9)],
+    "Kitchen":      [(8,8), (9,8), (8,9), (9,9)]
 }
 
 SECRET_PASSAGES = {
@@ -50,6 +38,7 @@ class Player:
         self.name = name
         self.position = position
         self.cards = []
+        self.eliminated = False
 
 class CluedoGame:
     def __init__(self):
@@ -62,7 +51,7 @@ class CluedoGame:
     def ask_player_count(self):
         while True:
             try:
-                num = int(input("How many players (2-6)? "))
+                num = int(input("How many players (2–6)? "))
                 if 2 <= num <= 6:
                     return num
                 else:
@@ -90,42 +79,80 @@ class CluedoGame:
         x, y = player.position
         for _ in range(steps):
             if direction == "UP":
-                x -= 1
-            elif direction == "DOWN":
-                x += 1
-            elif direction == "LEFT":
                 y -= 1
-            elif direction == "RIGHT":
+            elif direction == "DOWN":
                 y += 1
+            elif direction == "LEFT":
+                x -= 1
+            elif direction == "RIGHT":
+                x += 1
         player.position = (x, y)
 
     def check_room_entry(self, pos):
-        for room, doors in DOORS.items():
-            if pos in doors:
+        for room, tiles in ROOMS.items():
+            if pos in tiles:
                 return room
         return None
+
+    def will_move_off_board(self, position, direction, steps):
+        x, y = position
+        if direction == "UP":
+            return y - steps < 0
+        elif direction == "DOWN":
+            return y + steps >= 10
+        elif direction == "LEFT":
+            return x - steps < 0
+        elif direction == "RIGHT":
+            return x + steps >= 10
+        return True
 
     def suggest(self, player, room):
         print(f"{player.name}, make a suggestion in the {room}:")
         char = input("  Character: ").strip()
         weapon = input("  Weapon: ").strip()
+
         print(f"You suggested: {char} with the {weapon} in the {room}")
-        # Logic to move the suggested character and weapon would go here
 
-    def will_move_off_board(self, position, direction, steps):
-        x, y = position
-        if direction == "UP":
-            return x - steps < 0
-        elif direction == "DOWN":
-            return x + steps >= 10
-        elif direction == "LEFT":
-            return y - steps < 0
-        elif direction == "RIGHT":
-            return y + steps >= 10
-        return True
+        for p in self.players:
+            if p.name.lower() == char.lower() and p != player:
+                p.position = next(iter(ROOMS[room]))
+                print(f"{p.name} has been moved to the {room} as part of the suggestion.")
+                break
 
-    
+        refuted = False
+        current_index = self.players.index(player)
+        for i in range(1, len(self.players)):
+            next_player = self.players[(current_index + i) % len(self.players)]
+            matching_cards = [card for card in next_player.cards if card in {char, weapon, room}]
+            if matching_cards:
+                shown_card = random.choice(matching_cards)
+                print(f"{next_player.name} refuted your suggestion by showing you the card: {shown_card}")
+                refuted = True
+                break
+
+        if not refuted:
+            print("No one could refute your suggestion.")
+
+    def accuse(self, player):
+        print(f"{player.name}, make an accusation!")
+        char = input("  Character: ").strip()
+        weapon = input("  Weapon: ").strip()
+        room = input("  Room: ").strip()
+
+        print(f"\nYou accused: {char} with the {weapon} in the {room}")
+
+        if (char, weapon, room) == self.solution:
+            print(f"\n {player.name} made a correct accusation and wins the game! 🎉")
+            exit()
+        else:
+            print(f"\n Wrong accusation. {player.name} is eliminated from making further turns.")
+            player.eliminated = True
+
     def play_turn(self, player):
+        if player.eliminated:
+            print(f"{player.name} has been eliminated and cannot take a turn.")
+            return
+
         print(f"\n--- {player.name}'s Turn ---")
         current_pos = player.position
         room_name = self.check_room_entry(current_pos)
@@ -137,21 +164,44 @@ class CluedoGame:
         print(f"You rolled a {roll}.")
 
         while True:
-            move = input("Enter your move (e.g., UP 2): ").strip().upper().split()
+            move = input("Enter your move (e.g., UP 2), or type 'CARDS' to view your hand: ").strip().upper().split()
+
+            if not move:
+                print("Please enter a command.")
+                continue
+
+            if move[0] == "CARDS":
+                print(f"\nYour cards: {player.cards}\n")
+                continue
+
+            if move[0] == "ACCUSE":
+                self.accuse(player)
+                return
+
             if len(move) == 2 and move[0] in {"UP", "DOWN", "LEFT", "RIGHT"}:
-                direction, steps = move[0], int(move[1])
+                try:
+                    direction, steps = move[0], int(move[1])
+                except ValueError:
+                    print("Steps must be a number.")
+                    continue
+
                 if self.will_move_off_board(player.position, direction, steps):
                     print("That move would take you off the board. Try again.")
                     continue
+
                 self.move_player(player, direction, steps)
-                print(f"You have moved to {player.position}")
+                new_pos = player.position
+                room = self.check_room_entry(new_pos)
+                pos_display = f"{new_pos} ({room})" if room else str(new_pos)
+                print(f"You have moved to {pos_display}")
                 break
+
             elif move[0].startswith("SECRET_PASSAGE_TO_"):
                 dest_room = move[0].replace("SECRET_PASSAGE_TO_", "").title().replace("_", " ")
                 current_room = self.check_room_entry(player.position)
                 if current_room and SECRET_PASSAGES.get(current_room) == dest_room:
                     print(f"{player.name} uses a secret passage to the {dest_room}.")
-                    player.position = DOORS[dest_room][0]
+                    player.position = next(iter(ROOMS[dest_room]))
                     self.suggest(player, dest_room)
                 else:
                     print("Invalid secret passage.")
