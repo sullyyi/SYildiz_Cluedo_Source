@@ -169,6 +169,7 @@ class TurnManager:
         else:
             print("No player could refute this suggestion.")
 
+
     def ai_accuse_if_confident(self, player):
         accusation = player.make_accusation()
         if accusation is None:
@@ -211,6 +212,9 @@ class TurnManager:
 
         if not refuted:
             print("No one could refute your suggestion.")
+        #log for tracking
+        player.suggestion_history.append((char, weapon, room, next_player.name if refuted else None))
+
 
     def accuse(self, player):
         print(f"{player.name}, make an accusation!")

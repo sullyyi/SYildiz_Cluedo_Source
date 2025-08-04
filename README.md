@@ -1,6 +1,3 @@
-
-#This is the part 1 for my Cluedo game. Some names and weapons are different, but the gameplay is the same. The project is also on GitHub and the instructions to clone are as follows:
-
 #Cloning link:
 git clone https://github.com/sullyyi/SYildiz_Cluedo_Source.git 
 
@@ -9,13 +6,20 @@ git clone https://github.com/sullyyi/SYildiz_Cluedo_Source.git
 1. Ensure you are using Python 3.8 or newer.
 2. Navigate to this directory in your terminal.
 3. Run the game using:
-python cluedo.py
+python3 cluedo.py
 
 
 #Project Structure
 
-- `cluedo.py` – Main script for the game. It contains class definitions for characters, weapons, rooms, players and the game engine.
-- `README.md` – This file.
+Cluedo.py – Main entry file
+Player.py – player class and AI logic
+Turnmanager.py – turn by turn control and limits
+Tracker.py – human information tracking assistant
+Movement.py – game board movement control
+Configurations.py – character, room, weapon metadata
+Cluedo_Excel_Map.xlsx – helpful grid map and checkboxes for human players
+Tracker_log.txt – text file to automatically open up to assist with human notes
+
 
 ## Dependencies
-This project uses only Pythons standard library; no external packages are used.
+This project uses only Pythons standard code; no external packages are used.
